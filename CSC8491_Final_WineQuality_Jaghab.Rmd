@@ -1,0 +1,92 @@
+---
+title: "CSC8491_Final_WineQuality_Jaghab"
+output: html_notebook
+---
+
+#Read in File
+```{r}
+wineRaw <- read.csv(file = "/Users/eli/Desktop/Data\ Mining\ and\ DB\ Programming/Final/wine-quality.csv", stringsAsFactors = TRUE)
+```
+
+#Create Column of Wine Acceptability using 6 Threshold- Convert to 1s and 0s
+```{r}
+wineRaw$quality <- ifelse(wineRaw$quality > 6, 1, 0)
+```
+
+#Look at Wine Distribution - Most of the Wine is below the 6 Threshold
+```{r}
+prop.table(table(wineRaw$quality))
+```
+
+#Create Training and Test Data Sets
+```{r}
+#Training Data Percentage
+trainPct <- 0.75
+
+#Villanova ID Number Seed
+set.seed(01618670)
+trainRows <- sample(1:nrow(wineRaw), trainPct * nrow(wineRaw))
+
+#Create Training and Test Data Sets
+wineTrain <- wineRaw[trainRows,]
+wineTest <- wineRaw[-trainRows,]
+```
+
+
+#Build Random Forest Model
+```{r}
+library(randomForest)
+set.seed(01618670)
+
+wineRf<-randomForest(factor(quality)~.,wineTrain,ntree=150)
+
+wineRfPred <- predict(wineRf, wineTest, type = "class", positive = '1')
+wineRfPred2 <- predict(wineRf, wineTest, type = "class", positive = '0')
+
+
+wineRfMatrix <- confusionMatrix(wineRfPred, factor(wineTest$quality), mode = "prec_recall", positive = '1')
+wineRfMatrix
+
+wineRfMatrix2 <- confusionMatrix(wineRfPred2, factor(wineTest$quality), mode = "prec_recall", positive = '0')
+wineRfMatrix2
+varImpPlot(wineRf)
+```
+
+#Build Decision Tree Model 
+```{r}
+#install.packages("tree")
+library(tree)
+treeTrain <- tree(as.factor(quality)~.,wineTrain)
+treeTrainPred <- predict(treeTrain, wineTest, type = 'class')
+
+wineTreeMatrix <- confusionMatrix(treeTrainPred, as.factor(wineTest$quality), mode = 'prec_recall', positive = '1')
+wineTreeMatrix
+
+wineTreeMatrix2 <- confusionMatrix(treeTrainPred, as.factor(wineTest$quality), mode = 'prec_recall', positive = '0')
+wineTreeMatrix2
+
+plot(treeTrain)
+text(treeTrain, pretty = 0, cex = .5)
+```
+
+
+
+#•	Evidence of the correlations you obtained, such as the output from the cor() function.
+
+#For this data set, I think it is most important to prioritize the precision score because we are considering the quality of wine. IFor this data, we would be more inclined to exclude data points from the accpetable range and be more selective of the wines picked to be in the "Good" range. Precision factors false positives, so in this case, having a high precision accounts for having a minimal amount of wines thought to be good, but actually are not. 
+
+cor(wineTest$quality, y = as.numeric(wineRfPred), use = "everything",
+    method = c("pearson"))
+#The correlation of the actual data and the prediction is 62.9%
+
+#•	A clear statement of which model and results you are putting forth as your best effort to solve this problem.
+
+#My best model is the first random forest model that I ran where I specify the positive class as 0. This model scores 89% in precision which means that there was a low number of wines ranked as good, but were actually not good (small amount of false positives). This model does well because there is more data about the wines that are bad.
+
+
+#•	A written description of why you took the approach you took (between a few paragraphs and one page). 
+
+#First I read in the data, and used a threshold of 6 and above to determine if a wine is good or not. I then converted the quality of Wine column to 1s and 0s. I looked at the distribution of the data and saw that 78% of the wines were labeled as bad. 
+
+#I used random forest and decision tree modeling to determine the best model to fit this data set. After examining the scores from each of the models, I came to the conclusion that the random forest model is best fit for the model as it as a high precision score (89%). The factors that are most important in this model are alcohol, density, chlorides, volatile_acidity, and total_sulfur_dioxide (in descending order).
+
